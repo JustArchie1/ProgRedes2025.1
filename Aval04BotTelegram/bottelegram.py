@@ -28,6 +28,8 @@ PASTA_DOWNLOADS = "downloads"
 if not os.path.exists(PASTA_DOWNLOADS):
     os.mkdir(PASTA_DOWNLOADS)
 
+# Dicionário para armazenar cadastro: chat_id -> nome_usuario
+usuarios_cadastrados = {}
 
 # FUNÇÕES DE COMUNICAÇÃO COM TELEGRAM
 def enviar_requisicao_https(metodo, caminho, dados=None):
@@ -395,7 +397,7 @@ def baixar_imagem(url):
 
 def enviar_foto(chat_id, caminho_arquivo):
     """
-    Envia uma foto para o chat_id
+    Envia uma foto para o chat_id usando multipart/form-data na API Telegram.
     """
     with open(caminho_arquivo, "rb") as f:
         conteudo_arquivo = f.read()
@@ -442,7 +444,6 @@ def enviar_foto(chat_id, caminho_arquivo):
         return "Falha ao enviar foto."
 
 # LOOP PRINCIPAL DO BOT
-
 print("Bot iniciado...")
 
 while True:
@@ -455,17 +456,30 @@ while True:
             texto = mensagem.get("text", "")
             chat_id = mensagem.get("chat", {}).get("id")
 
-            if not texto:
+            if not texto or not chat_id:
                 continue
 
             print(f"[MSG] {chat_id}: {texto}")
 
+            # Se o usuário não está cadastrado, pede nome para cadastro
+            if chat_id not in usuarios_cadastrados:
+                nome = texto.strip()
+                if len(nome) < 2 or len(nome) > 30:
+                    enviar_mensagem(chat_id, "Por favor, envie um nome entre 2 e 30 caracteres para se cadastrar.")
+                else:
+                    usuarios_cadastrados[chat_id] = nome
+                    enviar_mensagem(chat_id, f"Olá, {nome}! Cadastro realizado com sucesso. Agora você pode usar os comandos do bot.")
+                continue  # Não processa comandos enquanto não cadastrado
+
+            # Usuário já cadastrado: processa comandos normalmente
+            nome_usuario = usuarios_cadastrados[chat_id]
+
             try:
                 if texto.startswith("/info"):
-                    enviar_mensagem(chat_id, cmd_info())
+                    enviar_mensagem(chat_id, f"{nome_usuario}, aqui estão suas informações:\n{cmd_info()}")
 
                 elif texto.startswith("/ping"):
-                    enviar_mensagem(chat_id, cmd_ping())
+                    enviar_mensagem(chat_id, f"{nome_usuario}, executando ping:\n{cmd_ping()}")
 
                 elif texto.startswith("/active"):
                     partes = texto.split()
